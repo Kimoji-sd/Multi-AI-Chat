@@ -5,16 +5,16 @@ import { initSSE, endSSE } from '../utils/sse.js';
 
 export async function chatRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.post<{ Body: ChatRequest }>('/api/chat', async (request, reply) => {
-    const { models, messages, userProfile } = request.body;
+    const { model, personas, messages, userProfile } = request.body;
 
-    if (!models?.length || !messages?.length) {
-      return reply.status(400).send({ error: 'models and messages are required' });
+    if (!model || !personas?.length || !messages?.length) {
+      return reply.status(400).send({ error: 'model, personas and messages are required' });
     }
 
     initSSE(reply);
 
     try {
-      await dispatchChat(models, messages, userProfile, reply);
+      await dispatchChat(model, personas, messages, userProfile, reply);
     } finally {
       endSSE(reply);
     }

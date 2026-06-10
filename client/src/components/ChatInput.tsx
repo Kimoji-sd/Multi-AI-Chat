@@ -13,7 +13,8 @@ export function ChatInput() {
   const fetchedRef = useRef(false);
 
   const isStreaming = useChatStore((s) => s.isStreaming);
-  const selectedModels = useChatStore((s) => s.selectedModels);
+  const selectedPersonas = useChatStore((s) => s.selectedPersonas);
+  const activeModel = useChatStore((s) => s.activeModel);
   const rounds = useChatStore((s) => s.rounds);
   const profile = useProfileStore((s) => s.profile);
   const profileLoading = useProfileStore((s) => s.isLoading);
@@ -43,7 +44,8 @@ export function ChatInput() {
 
     try {
       await streamChat({
-        models: selectedModels,
+        model: activeModel,
+        personas: selectedPersonas,
         messages: useChatStore.getState().getFlatMessages(),
         userProfile: profile,
       });

@@ -43,11 +43,11 @@ function handleSSEEvent(event: SSEEvent): void {
   const store = useChatStore.getState();
 
   if (event.type === 'chunk' && event.content) {
-    store.appendChunk(event.modelId, event.content);
+    store.appendChunk(event.personaId, event.content);
   } else if (event.type === 'done') {
-    store.markModelDone(event.modelId);
+    store.markPersonaDone(event.personaId);
   } else if (event.type === 'error' && event.error) {
-    store.setModelError(event.modelId, event.error);
-    store.markModelDone(event.modelId);
+    store.setPersonaError(event.personaId, event.error);
+    store.markPersonaDone(event.personaId);
   }
 }

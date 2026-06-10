@@ -1,29 +1,33 @@
 import { useEffect, useRef } from 'react';
 import { ThumbsUp } from 'lucide-react';
-import type { Message, ModelId } from '../types';
-import { getModelConfig, GRID_COLORS } from '../types';
+import type { Message, PersonaId } from '../types';
+import { getPersonaConfig, GRID_COLORS } from '../types';
 import { useLikeStore } from '../stores/likeStore';
 import { useChatStore } from '../stores/chatStore';
 
 interface ChatPanelProps {
-  modelId: ModelId;
-  modelIndex: number;
+  personaId: PersonaId;
+  personaIndex: number;
   messages: Message[];
   error?: string;
   cornerClass: string;
 }
 
+function formatMessageContent(content: string): string {
+  return content.trim().replace(/\n{3,}/g, '\n\n');
+}
+
 export function ChatPanel({
-  modelId,
-  modelIndex,
+  personaId,
+  personaIndex,
   messages,
   error,
   cornerClass,
 }: ChatPanelProps) {
-  const config = getModelConfig(modelId);
-  const color = GRID_COLORS[modelIndex] ?? config?.avatarColor ?? '#0066FF';
+  const config = getPersonaConfig(personaId);
+  const color = GRID_COLORS[personaIndex] ?? config?.avatarColor ?? '#0066FF';
   const scrollRef = useRef<HTMLDivElement>(null);
-  const likeCount = useLikeStore((s) => s.likes[modelId] ?? 0);
+  const likeCount = useLikeStore((s) => s.likes[personaId] ?? 0);
   const likeMessage = useChatStore((s) => s.likeMessage);
   const isStreaming = useChatStore((s) => s.isStreaming);
 
@@ -43,7 +47,7 @@ export function ChatPanel({
       <div className="h-1 shrink-0" style={{ backgroundColor: color }} />
       <div className="flex items-center justify-between px-3 pt-2 pb-1 shrink-0">
         <span className="text-xs font-medium text-secondary truncate">
-          {config?.displayName ?? modelId}
+          {config?.displayName ?? personaId}
         </span>
         <div className="flex items-center gap-1 text-secondary shrink-0 ml-2">
           <ThumbsUp className="w-3 h-3" />
@@ -62,13 +66,13 @@ export function ChatPanel({
             }`}
           >
             {msg.role === 'user' ? (
-              <div className="text-[15px] leading-relaxed px-3 py-2 rounded-element max-w-[80%] whitespace-pre-wrap break-words bg-accent text-white">
+              <div className="text-[12px] leading-relaxed px-3 py-2 rounded-element max-w-[80%] whitespace-pre-wrap break-words bg-accent text-white">
                 {msg.content}
               </div>
             ) : (
               <div className="flex flex-col items-start max-w-[85%]">
-                <div className="text-[15px] leading-relaxed px-3 py-2 rounded-element whitespace-pre-wrap break-words bg-input text-primary w-full">
-                  {msg.content}
+                <div className="text-[12px] leading-relaxed px-3 py-2 rounded-element whitespace-pre-wrap break-words bg-input text-primary w-full">
+                  {formatMessageContent(msg.content)}
                   {msg.isStreaming && (
                     <span
                       className="inline-block w-px h-4 ml-0.5 align-middle animate-blink"
@@ -97,7 +101,7 @@ export function ChatPanel({
           </div>
         ))}
         {error && (
-          <div className="text-[13px] text-error px-2 py-1 rounded-element bg-red-50">
+          <div className="text-[12px] text-error px-2 py-1 rounded-element bg-red-50">
             {error}
           </div>
         )}

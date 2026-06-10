@@ -1,17 +1,17 @@
-import type { ModelId } from '../types';
+import type { PersonaId } from '../types';
 import { useChatStore } from '../stores/chatStore';
 import { ChatPanel } from './ChatPanel';
 
 export function ChatGrid() {
-  const selectedModels = useChatStore((s) => s.selectedModels);
+  const selectedPersonas = useChatStore((s) => s.selectedPersonas);
   const rounds = useChatStore((s) => s.rounds);
-  const errorByModel = useChatStore((s) => s.errorByModel);
+  const errorByPersona = useChatStore((s) => s.errorByPersona);
 
-  const getPanelMessages = (modelId: ModelId) => {
+  const getPanelMessages = (personaId: PersonaId) => {
     const messages: ReturnType<typeof useChatStore.getState>['rounds'][0]['assistantMessages'] = [];
     for (const round of rounds) {
       messages.push(round.userMessage);
-      const assistant = round.assistantMessages.find((m) => m.modelId === modelId);
+      const assistant = round.assistantMessages.find((m) => m.personaId === personaId);
       if (assistant) messages.push(assistant);
     }
     return messages;
@@ -26,13 +26,13 @@ export function ChatGrid() {
 
   return (
     <div className="flex-1 min-h-0 overflow-hidden grid grid-cols-2 grid-rows-2 gap-0">
-      {selectedModels.map((modelId, index) => (
+      {selectedPersonas.map((personaId, index) => (
         <ChatPanel
-          key={modelId}
-          modelId={modelId}
-          modelIndex={index}
-          messages={getPanelMessages(modelId)}
-          error={errorByModel[modelId]}
+          key={personaId}
+          personaId={personaId}
+          personaIndex={index}
+          messages={getPanelMessages(personaId)}
+          error={errorByPersona[personaId]}
           cornerClass={corners[index] ?? ''}
         />
       ))}

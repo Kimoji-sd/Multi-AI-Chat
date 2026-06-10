@@ -1,8 +1,9 @@
 import type {
   ChatRound,
-  ModelId,
+  PersonaId,
   UserProfile,
 } from '../../../shared/types.js';
+import { getPersonaConfig } from '../../../shared/types.js';
 import { env } from '../config/env.js';
 import { createProfileAgentAdapter } from './modelAdapters/openai.js';
 
@@ -11,7 +12,12 @@ function roundsToText(rounds: ChatRound[]): string {
     .map((round) => {
       const user = round.userMessage.content;
       const replies = round.assistantMessages
-        .map((m) => `[${m.modelId}]: ${m.content}`)
+        .map((m) => {
+          const name = m.personaId
+            ? (getPersonaConfig(m.personaId)?.displayName ?? m.personaId)
+            : '未知人格';
+          return `[${name}]: ${m.content}`;
+        })
         .join('\n');
       return `User: ${user}\n${replies}`;
     })
@@ -19,7 +25,7 @@ function roundsToText(rounds: ChatRound[]): string {
 }
 
 function computeTechnicalMetrics(rounds: ChatRound[]) {
-  const modelCounts: Record<string, number> = {};
+  const personaCounts: Record<string, number> = {};
   let totalLength = 0;
   let messageCount = 0;
   const hours: number[] = [];
@@ -30,19 +36,19 @@ function computeTechnicalMetrics(rounds: ChatRound[]) {
     hours.push(new Date(round.timestamp).getHours());
 
     for (const msg of round.assistantMessages) {
-      if (msg.modelId) {
-        modelCounts[msg.modelId] = (modelCounts[msg.modelId] ?? 0) + 1;
+      if (msg.personaId) {
+        personaCounts[msg.personaId] = (personaCounts[msg.personaId] ?? 0) + 1;
       }
     }
   }
 
-  const preferredModels = Object.entries(modelCounts)
+  const preferredPersonas = Object.entries(personaCounts)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
-    .map(([id]) => id as ModelId);
+    .map(([id]) => id as PersonaId);
 
   return {
-    preferredModels,
+    preferredPersonas,
     avgMessageLength: messageCount > 0 ? Math.round(totalLength / messageCount) : 0,
     activeHours: [...new Set(hours)],
   };
@@ -90,7 +96,7 @@ ${roundsText}
 请输出 JSON 格式的用户画像，包含：
 {
   "technicalProfile": {
-    "preferredModels": ["模型1"],
+    "preferredPersonas": ["人格1"],
     "topicDistribution": {"技术": 0.4},
     "avgMessageLength": 数字,
     "activeHours": [9, 14, 21]
@@ -117,7 +123,7 @@ ${roundsText}
   const parsed = parseProfileJson(llmResponse);
 
   const newTechnical = parsed?.technicalProfile ?? {
-    preferredModels: metrics.preferredModels,
+    preferredPersonas: metrics.preferredPersonas,
     topicDistribution: {},
     avgMessageLength: metrics.avgMessageLength,
     activeHours: metrics.activeHours,
@@ -125,10 +131,10 @@ ${roundsText}
 
   const mergedTechnical = existingProfile
     ? {
-        preferredModels:
-          newTechnical.preferredModels?.length > 0
-            ? newTechnical.preferredModels
-            : existingProfile.technicalProfile.preferredModels,
+        preferredPersonas:
+          newTechnical.preferredPersonas?.length > 0
+            ? newTechnical.preferredPersonas
+            : existingProfile.technicalProfile.preferredPersonas,
         topicDistribution: mergeTopicDistribution(
           existingProfile.technicalProfile.topicDistribution,
           newTechnical.topicDistribution ?? {}
@@ -145,7 +151,7 @@ ${roundsText}
         ],
       }
     : {
-        preferredModels: newTechnical.preferredModels ?? metrics.preferredModels,
+        preferredPersonas: newTechnical.preferredPersonas ?? metrics.preferredPersonas,
         topicDistribution: newTechnical.topicDistribution ?? {},
         avgMessageLength: newTechnical.avgMessageLength ?? metrics.avgMessageLength,
         activeHours: newTechnical.activeHours ?? metrics.activeHours,

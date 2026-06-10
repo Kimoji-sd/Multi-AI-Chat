@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { History } from 'lucide-react';
-import { MODEL_POOL, type ChatSession } from '../types';
-import { useModelStore } from '../stores/modelStore';
+import { PERSONA_POOL, type ChatSession } from '../types';
+import { usePersonaStore } from '../stores/personaStore';
 import { useChatStore } from '../stores/chatStore';
 import { useLikeStore } from '../stores/likeStore';
-import { ModelCard } from '../components/ModelCard';
+import { PersonaCard } from '../components/PersonaCard';
+import { ModelDropdown } from '../components/ModelDropdown';
 import { Sidebar } from '../components/Sidebar';
 
 export function ModelSelectPage() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { selectedModels, toggleModel, setModels } = useModelStore();
+  const { selectedPersonas, activeModel, togglePersona, setPersonas, setActiveModel } =
+    usePersonaStore();
   const likes = useLikeStore((s) => s.likes);
   const loadLikes = useLikeStore((s) => s.loadLikes);
   const loadSession = useChatStore((s) => s.loadSession);
@@ -20,60 +22,65 @@ export function ModelSelectPage() {
     void loadLikes();
   }, [loadLikes]);
 
-  const isFull = selectedModels.length >= 4;
-  const canStart = selectedModels.length === 4;
+  const isFull = selectedPersonas.length >= 4;
+  const canStart = selectedPersonas.length === 4;
 
   const handleStart = () => {
     if (!canStart) return;
-    useChatStore.getState().setSelectedModels(selectedModels);
-    useChatStore.getState().newSession(selectedModels);
+    useChatStore.getState().setSelectedPersonas(selectedPersonas);
+    useChatStore.getState().setActiveModel(activeModel);
+    useChatStore.getState().newSession(selectedPersonas, activeModel);
     navigate('/chat');
   };
 
   const handleSelectSession = (session: ChatSession) => {
     loadSession(session);
-    setModels(session.selectedModels);
+    setPersonas(session.selectedPersonas);
+    setActiveModel(session.activeModel);
     navigate('/chat');
   };
 
   return (
     <div className="min-h-dvh bg-background animate-fade-in">
       <div className="max-w-mobile mx-auto w-full">
-        <header className="sticky top-0 z-30 h-12 flex items-center justify-between px-4 bg-card/80 backdrop-blur-sm border-b border-divider">
-          <span className="text-[15px] font-semibold text-primary">Multi-AI Chat</span>
-          <button
-            type="button"
-            onClick={() => setSidebarOpen(true)}
-            className="p-1 text-primary hover:opacity-70 transition-opacity"
-            aria-label="历史对话"
-          >
-            <History className="w-5 h-5" />
-          </button>
+        <header className="sticky top-0 z-30 h-12 flex items-center justify-between gap-2 px-4 bg-card/80 backdrop-blur-sm border-b border-divider">
+          <span className="text-[15px] font-semibold text-primary shrink-0">Multi-AI Chat</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <ModelDropdown value={activeModel} onChange={setActiveModel} />
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className="p-1 text-primary hover:opacity-70 transition-opacity shrink-0"
+              aria-label="历史对话"
+            >
+              <History className="w-5 h-5" />
+            </button>
+          </div>
         </header>
 
         <div className="px-4 pb-24">
-          <header className="pt-8 pb-6">
+          <header className="pt-6 pb-6">
             <h1 className="text-[32px] font-bold tracking-[-0.5px] text-primary leading-tight">
-              Choose your AI squad
+              选择你的 AI 人格
             </h1>
-            <p className="text-[15px] text-secondary mt-2">Pick 4 models to chat with</p>
+            <p className="text-[15px] text-secondary mt-2">挑选 4 个人格同时对话</p>
           </header>
 
           <div className="grid grid-cols-2 gap-3 pt-1 overflow-visible">
-            {MODEL_POOL.map((model) => {
-              const index = selectedModels.indexOf(model.id);
+            {PERSONA_POOL.map((persona) => {
+              const index = selectedPersonas.indexOf(persona.id);
               const isSelected = index >= 0;
               const disabled = isFull && !isSelected;
 
               return (
-                <ModelCard
-                  key={model.id}
-                  model={model}
+                <PersonaCard
+                  key={persona.id}
+                  persona={persona}
                   isSelected={isSelected}
                   selectionIndex={index + 1}
                   disabled={disabled}
-                  likeCount={likes[model.id] ?? 0}
-                  onToggle={() => toggleModel(model.id)}
+                  likeCount={likes[persona.id] ?? 0}
+                  onToggle={() => togglePersona(persona.id)}
                 />
               );
             })}
@@ -93,7 +100,7 @@ export function ModelSelectPage() {
                 : 'bg-divider text-secondary cursor-not-allowed'
             }`}
           >
-            Start Chat
+            开始对话
           </button>
         </div>
       </div>

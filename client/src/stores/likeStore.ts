@@ -1,28 +1,28 @@
 import { create } from 'zustand';
-import type { ModelId } from '../types';
-import { getAllModelLikes, incrementModelLike } from '../db/indexedDB';
+import type { PersonaId } from '../types';
+import { getAllPersonaLikes, incrementPersonaLike } from '../db/indexedDB';
 
 interface LikeStore {
   likes: Record<string, number>;
   loadLikes: () => Promise<void>;
-  addLike: (modelId: ModelId) => Promise<void>;
-  getCount: (modelId: ModelId) => number;
+  addLike: (personaId: PersonaId) => Promise<void>;
+  getCount: (personaId: PersonaId) => number;
 }
 
 export const useLikeStore = create<LikeStore>((set, get) => ({
   likes: {},
 
   loadLikes: async () => {
-    const likes = await getAllModelLikes();
+    const likes = await getAllPersonaLikes();
     set({ likes });
   },
 
-  addLike: async (modelId) => {
-    const count = await incrementModelLike(modelId);
+  addLike: async (personaId) => {
+    const count = await incrementPersonaLike(personaId);
     set((state) => ({
-      likes: { ...state.likes, [modelId]: count },
+      likes: { ...state.likes, [personaId]: count },
     }));
   },
 
-  getCount: (modelId) => get().likes[modelId] ?? 0,
+  getCount: (personaId) => get().likes[personaId] ?? 0,
 }));

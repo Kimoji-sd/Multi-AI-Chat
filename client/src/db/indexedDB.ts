@@ -1,8 +1,8 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { ChatSession, ModelId, UserProfile } from '../types';
+import type { ChatSession, PersonaId, UserProfile } from '../types';
 
-interface ModelLikeRecord {
-  modelId: ModelId;
+interface PersonaLikeRecord {
+  personaId: PersonaId;
   count: number;
 }
 
@@ -16,14 +16,14 @@ interface MultiAIChatDB extends DBSchema {
     key: number;
     value: UserProfile;
   };
-  modelLikes: {
+  personaLikes: {
     key: string;
-    value: ModelLikeRecord;
+    value: PersonaLikeRecord;
   };
 }
 
 const DB_NAME = 'multi-ai-chat';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbPromise: Promise<IDBPDatabase<MultiAIChatDB>> | null = null;
 
@@ -36,8 +36,8 @@ function getDB() {
           sessionStore.createIndex('by-updatedAt', 'updatedAt');
           db.createObjectStore('profiles', { keyPath: 'version' });
         }
-        if (oldVersion < 2 && !db.objectStoreNames.contains('modelLikes')) {
-          db.createObjectStore('modelLikes', { keyPath: 'modelId' });
+        if (oldVersion < 3 && !db.objectStoreNames.contains('personaLikes')) {
+          db.createObjectStore('personaLikes', { keyPath: 'personaId' });
         }
       },
     });
@@ -78,20 +78,20 @@ export async function getProfile(): Promise<UserProfile | null> {
   return all.sort((a, b) => b.version - a.version)[0];
 }
 
-export async function getAllModelLikes(): Promise<Record<string, number>> {
+export async function getAllPersonaLikes(): Promise<Record<string, number>> {
   const db = await getDB();
-  const records = await db.getAll('modelLikes');
+  const records = await db.getAll('personaLikes');
   const likes: Record<string, number> = {};
   for (const record of records) {
-    likes[record.modelId] = record.count;
+    likes[record.personaId] = record.count;
   }
   return likes;
 }
 
-export async function incrementModelLike(modelId: ModelId): Promise<number> {
+export async function incrementPersonaLike(personaId: PersonaId): Promise<number> {
   const db = await getDB();
-  const existing = await db.get('modelLikes', modelId);
+  const existing = await db.get('personaLikes', personaId);
   const count = (existing?.count ?? 0) + 1;
-  await db.put('modelLikes', { modelId, count });
+  await db.put('personaLikes', { personaId, count });
   return count;
 }

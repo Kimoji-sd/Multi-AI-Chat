@@ -4,7 +4,9 @@ import type {
   ChatSession,
   Message,
   ModelId,
+  PersonaId,
 } from '../types';
+import { DEFAULT_MODEL_ID } from '../types';
 import { saveSession } from '../db/indexedDB';
 import { useLikeStore } from './likeStore';
 
@@ -14,36 +16,47 @@ function generateId(): string {
 
 interface ChatStore {
   currentSession: ChatSession | null;
-  selectedModels: ModelId[];
+  selectedPersonas: PersonaId[];
+  activeModel: ModelId;
   rounds: ChatRound[];
   isStreaming: boolean;
-  pendingDoneModels: Set<string>;
-  errorByModel: Record<string, string>;
+  pendingDonePersonas: Set<string>;
+  errorByPersona: Record<string, string>;
 
-  setSelectedModels: (models: ModelId[]) => void;
+  setSelectedPersonas: (personas: PersonaId[]) => void;
+  setActiveModel: (model: ModelId) => void;
   addUserMessage: (content: string) => void;
-  appendChunk: (modelId: ModelId, content: string) => void;
-  markModelDone: (modelId: ModelId) => void;
-  setModelError: (modelId: ModelId, error: string) => void;
+  appendChunk: (personaId: PersonaId, content: string) => void;
+  markPersonaDone: (personaId: PersonaId) => void;
+  setPersonaError: (personaId: PersonaId, error: string) => void;
   completeRound: () => Promise<void>;
   loadSession: (session: ChatSession) => void;
-  newSession: (models: ModelId[]) => void;
+  newSession: (personas: PersonaId[], model: ModelId) => void;
   getFlatMessages: () => Message[];
   likeMessage: (messageId: string) => Promise<boolean>;
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
   currentSession: null,
-  selectedModels: [],
+  selectedPersonas: [],
+  activeModel: DEFAULT_MODEL_ID,
   rounds: [],
   isStreaming: false,
-  pendingDoneModels: new Set(),
-  errorByModel: {},
+  pendingDonePersonas: new Set(),
+  errorByPersona: {},
 
-  setSelectedModels: (models) => set({ selectedModels: models }),
+  setSelectedPersonas: (personas) => set({ selectedPersonas: personas }),
+
+  setActiveModel: (model) => {
+    set({ activeModel: model });
+    const { currentSession } = get();
+    if (currentSession) {
+      set({ currentSession: { ...currentSession, activeModel: model } });
+    }
+  },
 
   addUserMessage: (content) => {
-    const { selectedModels, currentSession, rounds } = get();
+    const { selectedPersonas, activeModel, currentSession, rounds } = get();
     const userMessage: Message = {
       id: generateId(),
       role: 'user',
@@ -51,10 +64,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       timestamp: Date.now(),
     };
 
-    const assistantMessages: Message[] = selectedModels.map((modelId) => ({
+    const assistantMessages: Message[] = selectedPersonas.map((personaId) => ({
       id: generateId(),
       role: 'assistant' as const,
-      modelId,
+      personaId,
       content: '',
       timestamp: Date.now(),
       isStreaming: true,
@@ -74,7 +87,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     const session: ChatSession = currentSession ?? {
       id: generateId(),
       title,
-      selectedModels,
+      selectedPersonas,
+      activeModel,
       rounds: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -84,19 +98,19 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       currentSession: { ...session, title },
       rounds: [...rounds, round],
       isStreaming: true,
-      pendingDoneModels: new Set(selectedModels),
-      errorByModel: {},
+      pendingDonePersonas: new Set(selectedPersonas),
+      errorByPersona: {},
     });
   },
 
-  appendChunk: (modelId, content) => {
+  appendChunk: (personaId, content) => {
     set((state) => {
       const rounds = [...state.rounds];
       const lastRound = rounds[rounds.length - 1];
       if (!lastRound) return state;
 
       const assistantMessages = lastRound.assistantMessages.map((msg) =>
-        msg.modelId === modelId
+        msg.personaId === personaId
           ? { ...msg, content: msg.content + content }
           : msg
       );
@@ -106,42 +120,43 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     });
   },
 
-  markModelDone: (modelId) => {
+  markPersonaDone: (personaId) => {
     set((state) => {
       const rounds = [...state.rounds];
       const lastRound = rounds[rounds.length - 1];
       if (lastRound) {
         const assistantMessages = lastRound.assistantMessages.map((msg) =>
-          msg.modelId === modelId ? { ...msg, isStreaming: false } : msg
+          msg.personaId === personaId ? { ...msg, isStreaming: false } : msg
         );
         rounds[rounds.length - 1] = { ...lastRound, assistantMessages };
       }
 
-      const pendingDoneModels = new Set(state.pendingDoneModels);
-      pendingDoneModels.delete(modelId);
+      const pendingDonePersonas = new Set(state.pendingDonePersonas);
+      pendingDonePersonas.delete(personaId);
 
-      return { rounds, pendingDoneModels };
+      return { rounds, pendingDonePersonas };
     });
 
-    const { pendingDoneModels } = get();
-    if (pendingDoneModels.size === 0) {
+    const { pendingDonePersonas } = get();
+    if (pendingDonePersonas.size === 0) {
       void get().completeRound();
     }
   },
 
-  setModelError: (modelId, error) => {
+  setPersonaError: (personaId, error) => {
     set((state) => ({
-      errorByModel: { ...state.errorByModel, [modelId]: error },
+      errorByPersona: { ...state.errorByPersona, [personaId]: error },
     }));
   },
 
   completeRound: async () => {
-    const { currentSession, rounds, selectedModels } = get();
+    const { currentSession, rounds, selectedPersonas, activeModel } = get();
     if (!currentSession) return;
 
     const session: ChatSession = {
       ...currentSession,
-      selectedModels,
+      selectedPersonas,
+      activeModel,
       rounds,
       updatedAt: Date.now(),
     };
@@ -153,22 +168,24 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   loadSession: (session) => {
     set({
       currentSession: session,
-      selectedModels: session.selectedModels,
+      selectedPersonas: session.selectedPersonas,
+      activeModel: session.activeModel ?? DEFAULT_MODEL_ID,
       rounds: session.rounds,
       isStreaming: false,
-      pendingDoneModels: new Set(),
-      errorByModel: {},
+      pendingDonePersonas: new Set(),
+      errorByPersona: {},
     });
   },
 
-  newSession: (models) => {
+  newSession: (personas, model) => {
     set({
       currentSession: null,
-      selectedModels: models,
+      selectedPersonas: personas,
+      activeModel: model,
       rounds: [],
       isStreaming: false,
-      pendingDoneModels: new Set(),
-      errorByModel: {},
+      pendingDonePersonas: new Set(),
+      errorByPersona: {},
     });
   },
 
@@ -183,29 +200,30 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   likeMessage: async (messageId) => {
-    const { rounds, currentSession, selectedModels } = get();
-    let targetModelId: ModelId | undefined;
+    const { rounds, currentSession, selectedPersonas, activeModel } = get();
+    let targetPersonaId: PersonaId | undefined;
     let found = false;
 
     const updatedRounds = rounds.map((round) => ({
       ...round,
       assistantMessages: round.assistantMessages.map((msg) => {
         if (msg.id !== messageId) return msg;
-        if (msg.liked || msg.isStreaming || !msg.content || !msg.modelId) return msg;
+        if (msg.liked || msg.isStreaming || !msg.content || !msg.personaId) return msg;
         found = true;
-        targetModelId = msg.modelId;
+        targetPersonaId = msg.personaId;
         return { ...msg, liked: true };
       }),
     }));
 
-    if (!found || !targetModelId) return false;
+    if (!found || !targetPersonaId) return false;
 
     set({ rounds: updatedRounds });
 
     if (currentSession) {
       const session: ChatSession = {
         ...currentSession,
-        selectedModels,
+        selectedPersonas,
+        activeModel,
         rounds: updatedRounds,
         updatedAt: Date.now(),
       };
@@ -213,7 +231,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       set({ currentSession: session });
     }
 
-    await useLikeStore.getState().addLike(targetModelId);
+    await useLikeStore.getState().addLike(targetPersonaId);
     return true;
   },
 }));
