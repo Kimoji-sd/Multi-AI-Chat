@@ -92,6 +92,20 @@ export interface ProfileResponse {
   profile: UserProfile;
 }
 
+export interface RecommendRequest {
+  userProfile?: UserProfile | null;
+}
+
+export interface RecommendResponse {
+  questions: string[];
+}
+
+export const COLD_START_RECOMMENDATIONS = [
+  '总是容易胡思乱想、内耗，要怎么调整心态？',
+  '独处的时候容易莫名难过，如何改善？',
+  '怎样才能做到遇事不情绪化、心态平稳？',
+] as const;
+
 export const MODEL_POOL: ModelConfig[] = [
   // 阿里云百炼
   {
