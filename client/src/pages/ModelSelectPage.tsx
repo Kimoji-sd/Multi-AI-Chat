@@ -1,13 +1,61 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { History } from 'lucide-react';
-import { PERSONA_POOL, type ChatSession } from '../types';
+import {
+  CELEBRITY_PERSONA_POOL,
+  PERSONALITY_PERSONA_POOL,
+  TRADITIONAL_PERSONA_POOL,
+  type ChatSession,
+  type PersonaConfig,
+  type PersonaId,
+} from '../types';
 import { usePersonaStore } from '../stores/personaStore';
 import { useChatStore } from '../stores/chatStore';
 import { useLikeStore } from '../stores/likeStore';
 import { PersonaCard } from '../components/PersonaCard';
 import { ModelDropdown } from '../components/ModelDropdown';
 import { Sidebar } from '../components/Sidebar';
+
+function PersonaSection({
+  title,
+  personas,
+  selectedPersonas,
+  isFull,
+  likes,
+  onToggle,
+}: {
+  title: string;
+  personas: PersonaConfig[];
+  selectedPersonas: PersonaId[];
+  isFull: boolean;
+  likes: Record<string, number>;
+  onToggle: (id: PersonaId) => void;
+}) {
+  return (
+    <section className="mb-6">
+      <h2 className="text-[13px] font-bold text-primary mb-3">{title}</h2>
+      <div className="grid grid-cols-2 gap-3 overflow-visible">
+        {personas.map((persona) => {
+          const index = selectedPersonas.indexOf(persona.id);
+          const isSelected = index >= 0;
+          const disabled = isFull && !isSelected;
+
+          return (
+            <PersonaCard
+              key={persona.id}
+              persona={persona}
+              isSelected={isSelected}
+              selectionIndex={index + 1}
+              disabled={disabled}
+              likeCount={likes[persona.id] ?? 0}
+              onToggle={() => onToggle(persona.id)}
+            />
+          );
+        })}
+      </div>
+    </section>
+  );
+}
 
 export function ModelSelectPage() {
   const navigate = useNavigate();
@@ -66,25 +114,32 @@ export function ModelSelectPage() {
             <p className="text-[15px] text-secondary mt-2">挑选 4 个人格同时对话</p>
           </header>
 
-          <div className="grid grid-cols-2 gap-3 pt-1 overflow-visible">
-            {PERSONA_POOL.map((persona) => {
-              const index = selectedPersonas.indexOf(persona.id);
-              const isSelected = index >= 0;
-              const disabled = isFull && !isSelected;
+          <PersonaSection
+            title="个性人格"
+            personas={PERSONALITY_PERSONA_POOL}
+            selectedPersonas={selectedPersonas}
+            isFull={isFull}
+            likes={likes}
+            onToggle={togglePersona}
+          />
 
-              return (
-                <PersonaCard
-                  key={persona.id}
-                  persona={persona}
-                  isSelected={isSelected}
-                  selectionIndex={index + 1}
-                  disabled={disabled}
-                  likeCount={likes[persona.id] ?? 0}
-                  onToggle={() => togglePersona(persona.id)}
-                />
-              );
-            })}
-          </div>
+          <PersonaSection
+            title="名人人格"
+            personas={CELEBRITY_PERSONA_POOL}
+            selectedPersonas={selectedPersonas}
+            isFull={isFull}
+            likes={likes}
+            onToggle={togglePersona}
+          />
+
+          <PersonaSection
+            title="传统人格"
+            personas={TRADITIONAL_PERSONA_POOL}
+            selectedPersonas={selectedPersonas}
+            isFull={isFull}
+            likes={likes}
+            onToggle={togglePersona}
+          />
         </div>
       </div>
 
