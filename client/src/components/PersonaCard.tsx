@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { ThumbsUp, Info } from 'lucide-react';
 import type { PersonaConfig } from '../types';
+import { getPersonaAvatarUrl } from '../types';
 import { PersonaInfoPopover } from './PersonaInfoPopover';
 
 interface PersonaCardProps {
@@ -21,9 +22,11 @@ export function PersonaCard({
   onToggle,
 }: PersonaCardProps) {
   const [infoOpen, setInfoOpen] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
   const infoButtonRef = useRef<HTMLButtonElement>(null);
 
   const initials = persona.displayName.slice(0, 2);
+  const showAvatarImage = !avatarError;
 
   return (
     <div
@@ -52,11 +55,22 @@ export function PersonaCard({
         }`}
       >
         <div className="flex items-center gap-2.5">
-          <div
-            className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0"
-            style={{ backgroundColor: persona.avatarColor }}
-          >
-            {initials}
+          <div className="w-10 h-10 rounded-full shrink-0 overflow-hidden bg-input">
+            {showAvatarImage ? (
+              <img
+                src={getPersonaAvatarUrl(persona.id)}
+                alt={persona.displayName}
+                className="w-full h-full object-cover"
+                onError={() => setAvatarError(true)}
+              />
+            ) : (
+              <div
+                className="w-full h-full flex items-center justify-center text-white text-sm font-semibold"
+                style={{ backgroundColor: persona.avatarColor }}
+              >
+                {initials}
+              </div>
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-[13px] font-semibold text-primary line-clamp-2 leading-snug">
